@@ -1,0 +1,9 @@
+sacred>=0.7.4
+matplotlib>=3.0.0
+requests>=2.19.1
+xgboost>=0.80
+Keras>=2.2.2
+numpy>=1.15.2
+tqdm>=4.26.0
+scikit_learn>=0.20.0
+pymongo
