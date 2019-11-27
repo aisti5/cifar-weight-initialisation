@@ -31,8 +31,8 @@ class CIFARDownloader(object):
         """
         Initialise the downloader.
 
-        :param int cifar_size:
-        :param str local_dir:
+        :param int cifar_size:      Type of CIFAR dataset: either 10 for CIFAR-10 or 100 for CIFAR-100.
+        :param str local_dir:       Path to a directory where the dataset will be saved and extracted.
         """
         # Verify input
         if cifar_size in [10, 100]:
@@ -52,6 +52,7 @@ class CIFARDownloader(object):
         return "CIFAR{}Downloader".format(self.cifar_size)
 
     def _download(self):
+        """Download data from CIFAR's website."""
         try:
             stream_handle = requests.get(self.download_url, stream=True)
             total_size = int(stream_handle.headers.get('content-length', 0))
@@ -70,6 +71,7 @@ class CIFARDownloader(object):
             raise CIFARDownloaderException("Error: {}".format(ex))
 
     def _extract(self, retry_download=True):
+        """Extract data from the downloaded archive."""
         self.logger.info("Extracting {} to {}".format(self.archive_path, self.local_dir))
         try:
             cifar_tar = tarfile.open(self.archive_path, 'r:gz')
@@ -90,6 +92,14 @@ class CIFARDownloader(object):
             utils.filesystem.remove_all(self.archive_path)
 
     def get_data(self):
+        """
+        Initialise local data.
+
+        This function will:
+            1) Download the CIFAR dataset specified by py:att:`~.cifar_size` if data is not present.
+            2) Extract the dataset, or attempt to re-download the archive if extraction fails.
+            3) Verify that the expected data file are present in the local directory.
+        """
         data_dir = os.path.join(self.local_dir, 'cifar-{}-*'.format(self.cifar_size))
         try:
             data_dir = glob.glob(data_dir)[0]
@@ -100,9 +110,11 @@ class CIFARDownloader(object):
             self.logger.info("All CIFAR-{} data is present and accounted for.".format(self.cifar_size))
 
         def _check_cifar10():
+            """Check if all data chunks are present."""
             return True if len(glob.glob(os.path.join(data_dir, 'data*'))) == 5 else False
 
         def _check_cifar100():
+            """Check if we all the CIFAr-100's files."""
             return True if len(
                 set([os.path.basename(fname) for fname in glob.glob(os.path.join(data_dir, '*'))]).intersection(
                     {'meta', 'test', 'train'})) == 3 else False

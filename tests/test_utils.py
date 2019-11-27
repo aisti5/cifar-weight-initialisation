@@ -2,6 +2,9 @@ import os
 import unittest
 import unittest.mock as mock
 
+import numpy as np
+
+import utils.CIFARDataset
 import utils.CIFARDownloader
 from utils.filesystem import temp_dir_context
 
@@ -26,12 +29,44 @@ class TestDownloader(unittest.TestCase):
                 downloader.get_data()
 
             downloader._download = mock.MagicMock()
-            # No data, but broken archive present: attempt to re-download, but fail
+            # No data, but broken archive present: attempt to re-download, and fail
             with open(os.path.join(downloader.local_dir, self.cifar_archive.format(10)), 'w') as archive_handle:
                 archive_handle.write('incomplete_data')
                 with self.assertRaises(utils.CIFARDownloader.CIFARDownloaderException):
                     downloader.get_data()
-                self.assertEquals(downloader._download.call_count, 1)
+                self.assertEqual(downloader._download.call_count, 1)
+
+
+class TestDataset(unittest.TestCase):
+    """Tests related to CIFAR dataset container class."""
+    def test_init(self):
+        """Test sanity check in init."""
+        with self.assertRaises(utils.CIFARDataset.CIFARDatasetException):
+            utils.CIFARDataset.CIFARDataset(cifar_size=3)
+
+    def test_load(self):
+        """Test error handling in the load method."""
+        dataset = utils.CIFARDataset.CIFARDataset(cifar_size=10)
+        with temp_dir_context() as tmp_dir, self.assertRaises(utils.CIFARDataset.CIFARDatasetException):
+            dataset.load(tmp_dir)
+
+    def test_pre_process(self):
+        """Test pre-processing for CNN."""
+        base_line = 100
+        dataset = utils.CIFARDataset.CIFARDataset(cifar_size=10)
+
+        dataset.train_img_categories = np.array([0, 1])
+        dataset.train_img_data = base_line + np.random.random((2, 3, 32, 32))
+        self.assertTrue(np.all(dataset.train_img_data >= base_line))
+        with self.assertRaises(utils.CIFARDataset.CIFARDatasetException):
+            dataset.pre_process_for_cnn()
+        dataset.test_img_data = dataset.train_img_data
+        dataset.test_img_categories = dataset.train_img_categories
+        dataset.pre_process_for_cnn()
+
+        self.assertTrue(np.all(dataset.train_img_data <= 1))
+        self.assertTrue(np.all(dataset.train_img_data >= 0))
+        self.assertEqual(dataset.train_img_data.shape, dataset.test_img_data.shape)
 
 
 class TestFilesystem(unittest.TestCase):
